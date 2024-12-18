@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista Fajlova</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            color: #333;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            background: #fff;
+            margin: 5px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Lista Fajlova</h1>
+    <ul id="fileList">
+        <!-- Ovdje će se prikazivati lista fajlova -->
+    </ul>
+
+    <script>
+        // Kreiranje WebSocket konekcije
+        const socket = new WebSocket("ws://localhost:8000/ws");
+
+        // Element u kojem će se prikazati lista fajlova
+        const fileList = document.getElementById("fileList");
+
+        // Event za otvaranje konekcije
+        socket.onopen = () => {
+            console.log("WebSocket konekcija je otvorena.");
+        };
+
+        // Event za prijem poruka
+        socket.onmessage = (event) => {
+            try {
+                // Pretpostavljamo da server šalje JSON sa listom fajlova
+                const files = JSON.parse(event.data);
+
+                // Provera da li je primljen niz fajlova
+                if (Array.isArray(files)) {
+                    // Očistimo prethodnu listu
+                    fileList.innerHTML = "";
+
+                    // Dodamo svaki fajl u listu
+                    files.forEach(file => {
+                        const listItem = document.createElement("li");
+                        listItem.textContent = file; // Ime fajla
+                        fileList.appendChild(listItem);
+                    });
+                } else {
+                    console.error("Primljen nevalidan format podataka:", files);
+                }
+            } catch (error) {
+                console.error("Greška pri parsiranju podataka:", error);
+            }
+        };
+
+        // Event za zatvaranje konekcije
+        socket.onclose = () => {
+            console.log("WebSocket konekcija je zatvorena.");
+        };
+
+        // Event za greške
+        socket.onerror = (error) => {
+            console.error("WebSocket greška:", error);
+        };
+    </script>
+</body>
+</html>
