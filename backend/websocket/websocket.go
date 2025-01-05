@@ -4,38 +4,57 @@ import (
 	"backend-ZI/filewatcher"
 	"log"
 	"net/http"
+	"sync"
+	"sync/atomic"
 
 	"github.com/gorilla/websocket"
 )
 
-func WsHandler(w http.ResponseWriter, r *http.Request) {
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow all origins (for production, implement specific checks)
+	},
+}
+var activeConnections int32
+var watchOnce sync.Once
 
-	upgrader := websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
-	}
-
+// HandleWebSocket sets up a WebSocket connection and sends data when receiving a file list.
+func HandleWebSocket(w http.ResponseWriter, r *http.Request, controlChannel chan string) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("Greška pri upgrade-u WebSocket-a:", err)
+		log.Println("WebSocket upgrade error:", err)
+		http.Error(w, "Failed to upgrade to WebSocket", http.StatusInternalServerError)
 		return
 	}
 	defer conn.Close()
 
-	updateChan := make(chan []string)
+	atomic.AddInt32(&activeConnections, 1)
+	log.Printf("WebSocket connection established. Active connections: %d", activeConnections)
 
-	dirToWatch := "./files"
+	defer func() {
+		conn.Close()
+		atomic.AddInt32(&activeConnections, -1)
+		log.Printf("WebSocket connection closed. Active connections: %d", activeConnections)
+	}()
+	events := make(chan []string)
+	log.Println("WebSocket connection established")
 
-	go filewatcher.FileWatcher(dirToWatch, updateChan)
+	dirToWatch := "/Users/dusanpavlovic016/Books/Target"
 
-	for files := range updateChan {
-		log.Println("Slanje fajlova klijentu:", files)
-		if err := conn.WriteJSON(files); err != nil {
-			log.Println("Greška pri slanju podataka klijentu:", err)
-			break // Zatvara konekciju ako se desi greška
+	watchOnce.Do(func() {
+		go func() {
+			log.Println("Watching directory: ./Target")
+			filewatcher.WatchDir(dirToWatch, events, controlChannel)
+		}()
+	})
+
+	for files := range events {
+		log.Printf("Sending file list to client: %v\n", files)
+		err := conn.WriteJSON(files)
+		if err != nil {
+			log.Println("Error sending data to WebSocket client:", err)
+			return
 		}
 	}
-	log.Println("WebSocket konekcija je zatvorena sa strane servera.")
 
 }

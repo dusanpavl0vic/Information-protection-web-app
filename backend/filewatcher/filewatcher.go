@@ -3,71 +3,72 @@ package filewatcher
 import (
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/fsnotify/fsnotify"
 )
 
-func listFiles(dir string) ([]string, error) {
-
-	var files []string
-	entries, err := os.ReadDir(dir)
-
-	if err != nil {
-		return nil, err
-	}
-	// indeks, pojedinacni element
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			files = append(files, entry.Name()) // dodajemo u listu
-		}
-	}
-
-	return files, nil
-
-}
-
-func FileWatcher(dirToWatch string, updateChan chan<- []string) {
+func WatchDir(dir string, events chan []string, controlChannel chan string) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		log.Fatalf("Greška prilikom kreiranja Watchera: %v", err)
+		log.Printf("Failed to create file watcher: %v", err)
+		return // Umesto log.Fatalf, koristi povratak
 	}
+
 	defer watcher.Close()
 
-	err = watcher.Add(dirToWatch)
+	err = watcher.Add(dir)
 	if err != nil {
-		log.Fatalf("Greška prilikom dodavanja direktorijuma u Watcher: %v", err)
+		log.Printf("Failed to watch directory %s: %v", dir, err)
+		return // Nastavlja rad bez prekida celog servera
 	}
 
-	// pocetna lista fajlova salje websocketu
-	sendFileList(dirToWatch, updateChan)
+	//log.Printf("Watching directory: %s\n", dir)
 
-	// proveravamo file
+	active := true // Početno stanje: aktivan
 	for {
 		select {
-		case event, ok := <-watcher.Events:
-			if !ok {
-				return
+		case event := <-watcher.Events:
+			if active && event.Op&(fsnotify.Create) != 0 {
+				log.Printf("File created in directory: %s\n", dir)
+				files, err := listFiles(dir)
+				if err != nil {
+					log.Printf("Error listing files in directory %s: %v", dir, err)
+					continue
+				}
+				events <- files
 			}
-
-			if event.Op&fsnotify.Create == fsnotify.Create || event.Op&fsnotify.Remove == fsnotify.Remove {
-				sendFileList(dirToWatch, updateChan)
+		case err := <-watcher.Errors:
+			log.Printf("File watcher error: %v", err)
+		case command := <-controlChannel:
+			switch command {
+			case "stop":
+				log.Println("Stopping file watcher...")
+				active = false
+			case "start":
+				log.Println("Starting file watcher...")
+				active = true
+				files, err := listFiles(dir)
+				if err != nil {
+					log.Printf("Error listing files in directory %s: %v", dir, err)
+					continue
+				}
+				events <- files
 			}
-		case err, ok := <-watcher.Errors:
-			if !ok {
-				return
-			}
-			log.Printf("Greška u Watcheru: %v", err)
 		}
 	}
 }
 
-// salje listu fajlova prko kanala
-// komunikacija izmedju gorutina
-func sendFileList(dir string, updateChan chan<- []string) {
-	files, err := listFiles(dir)
-	if err != nil {
-		log.Printf("Greška pri listanju fajlova: %v", err)
-		return
-	}
-	updateChan <- files
+func listFiles(dir string) ([]string, error) {
+	var files []string
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			files = append(files, path)
+		}
+		return nil
+	})
+	return files, err
 }
