@@ -1,6 +1,6 @@
-package railfencecipher
+package coders
 
-func encryptRailFence(message string, depth int) string {
+func EncryptRailFence(message string, depth int) string {
 	rails := make([][]rune, depth)
 	for i := range rails {
 		rails[i] = make([]rune, len(message))

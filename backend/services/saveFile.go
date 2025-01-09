@@ -44,6 +44,12 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	// TODO: Dodati citanje iz fajla i kodiranje u zavisnosti od odabranog kodera
+	// i sacuvati dir /Users/dusanpavlovic016/Books/X
+
+	// TODO: Могуће је одабрати опцију декодирања фајлова. Корисник бира неки
+	// кодирани фајл, врши се декодирање и декодирани фајл се памти на локацију коју корисник изабере.
+
 	targetDir := "/Users/dusanpavlovic016/Books/Target"
 
 	filePath, err := saveFile(file, fileHeader, targetDir)

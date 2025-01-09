@@ -6,19 +6,19 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins (for production, implement specific checks)
+		return true
 	},
 }
 var activeConnections int32
 var watchOnce sync.Once
 
-// HandleWebSocket sets up a WebSocket connection and sends data when receiving a file list.
 func HandleWebSocket(w http.ResponseWriter, r *http.Request, controlChannel chan string) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -26,35 +26,34 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request, controlChannel chan
 		http.Error(w, "Failed to upgrade to WebSocket", http.StatusInternalServerError)
 		return
 	}
-	defer conn.Close()
 
 	atomic.AddInt32(&activeConnections, 1)
 	log.Printf("WebSocket connection established. Active connections: %d", activeConnections)
 
 	defer func() {
-		conn.Close()
 		atomic.AddInt32(&activeConnections, -1)
+		conn.Close()
 		log.Printf("WebSocket connection closed. Active connections: %d", activeConnections)
 	}()
-	events := make(chan []string)
-	log.Println("WebSocket connection established")
 
+	conn.SetReadDeadline(time.Now().Add(60 * time.Second)) // Initial deadline
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second)) // Refresh on pong
+		return nil
+	})
+
+	events := make(chan []string)
 	dirToWatch := "/Users/dusanpavlovic016/Books/Target"
 
 	watchOnce.Do(func() {
-		go func() {
-			log.Println("Watching directory: ./Target")
-			filewatcher.WatchDir(dirToWatch, events, controlChannel)
-		}()
+		log.Println("Pokrenuta gorutina za file watcher")
+		go filewatcher.WatchDir(dirToWatch, events, controlChannel)
 	})
 
 	for files := range events {
-		log.Printf("Sending file list to client: %v\n", files)
-		err := conn.WriteJSON(files)
-		if err != nil {
+		if err := conn.WriteJSON(files); err != nil {
 			log.Println("Error sending data to WebSocket client:", err)
 			return
 		}
 	}
-
 }
