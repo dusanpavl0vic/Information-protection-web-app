@@ -1,5 +1,5 @@
 // /* sboxes.c: Tiger S boxes */
-package main
+package hash
 
 // var Table = [1024]uint64{
 // 	0x02AAB17CF7E90C5E /*    0 */, 0xAC424B03E243A8EC, /*    1 */

@@ -65,6 +65,57 @@ func WatchDir(dir string, events chan []string, controlChannel chan string) {
 					log.Printf("Error listing files in directory %s: %v", dir, err)
 					continue
 				}
+
+				events <- files
+			}
+		}
+	}
+}
+
+func WatchDir2(dir string, events chan []string, controlChannel chan string) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Printf("Failed to create file watcher: %v", err)
+		return
+	}
+
+	defer watcher.Close()
+
+	err = watcher.Add(dir)
+	if err != nil {
+		log.Printf("Failed to watch directory %s: %v", dir, err)
+		return
+	}
+
+	active := true
+	for {
+		select {
+		case event := <-watcher.Events:
+			if active && event.Op&(fsnotify.Create) != 0 {
+				log.Printf("File created in directory: %s\n", dir)
+				files, err := listFiles(dir)
+				if err != nil {
+					log.Printf("Error listing files in directory %s: %v", dir, err)
+					continue
+				}
+				events <- files
+			}
+		case err := <-watcher.Errors:
+			log.Printf("File watcher error: %v", err)
+		case command := <-controlChannel:
+			switch command {
+			case "stop":
+				log.Println("Stopping file watcher...")
+				active = true
+			case "start":
+				log.Println("Starting file watcher...")
+				active = true
+				files, err := listFiles(dir)
+				if err != nil {
+					log.Printf("Error listing files in directory %s: %v", dir, err)
+					continue
+				}
+
 				events <- files
 			}
 		}

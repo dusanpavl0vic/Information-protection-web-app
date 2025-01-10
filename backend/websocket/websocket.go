@@ -3,10 +3,12 @@ package websocket
 import (
 	"log"
 	"net/http"
-	"time"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
+
+var mutex sync.Mutex
 
 type WebSocketMessage struct {
 	Type string      `json:"type"`
@@ -55,8 +57,11 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request, controlChannel chan
 		case files := <-events:
 			message := WebSocketMessage{Type: "eventFiles", Data: files} // Kreiraj poruku sa tipom "eventFiles"
 			for c := range activeConnections {
-				if err := c.WriteJSON(message); err != nil {
-					log.Printf("Error sending data to WebSocket client: %v. Closing connection.", err)
+				mutex.Lock()
+				err := c.WriteJSON(message)
+				mutex.Unlock()
+				if err != nil {
+					log.Printf("Ugasen WebSocket klijent. Zatvaram kone")
 					delete(activeConnections, c)
 					c.Close()
 				}
@@ -64,15 +69,15 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request, controlChannel chan
 		case filesX := <-eventsX:
 			message := WebSocketMessage{Type: "eventFilesX", Data: filesX} // Kreiraj poruku sa tipom "eventFilesX"
 			for c := range activeConnections {
-				if err := c.WriteJSON(message); err != nil {
-					log.Printf("Error sending data to WebSocket client: %v. Closing connection.", err)
+				mutex.Lock()
+				err := c.WriteJSON(message)
+				mutex.Unlock()
+				if err != nil {
+					log.Printf("Ugasen WebSocket klijent. Zatvaram kone")
 					delete(activeConnections, c)
 					c.Close()
 				}
 			}
-		case <-time.After(60 * time.Second):
-			log.Println("Timeout zbog neaktivnosti, zatvaranje konekcije.")
-			return
 		}
 	}
 }

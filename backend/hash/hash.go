@@ -1,8 +1,7 @@
-package main
+package hash
 
 import (
 	"encoding/binary"
-	"fmt"
 )
 
 var Table = [1024]uint64{
@@ -532,37 +531,37 @@ func TigerHash(message []byte) [24]byte {
 	var h0 uint64 = 0x0123456789ABCDEF
 	var h1 uint64 = 0xFEDCBA9876543210
 	var h2 uint64 = 0xF096A5B4C3D2E187
-	fmt.Println("1 Dužina: ", len(message), " poruka: ", message)
+	// fmt.Println("1 Dužina: ", len(message), " poruka: ", message)
 
 	originalLength := len(message)
 
 	message = append(message, 0x80)
 
-	fmt.Println("2 Dužina: ", len(message), " poruka: ", message)
+	// fmt.Println("2 Dužina: ", len(message), " poruka: ", message)
 
 	for (len(message)*8)%512 != 448 {
 		message = append(message, 0x00)
 	}
 
-	fmt.Println("3 Dužina: ", len(message), " poruka: ", message)
+	// fmt.Println("3 Dužina: ", len(message), " poruka: ", message)
 
 	lengthInBits := uint64(originalLength) * 8
 	lengthBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(lengthBytes, lengthInBits)
 	message = append(message, lengthBytes...)
 
-	fmt.Println("4 Dužina: ", len(message), " poruka: ", message)
+	// fmt.Println("4 Dužina: ", len(message), " poruka: ", message)
 	// Process each 512-bit chunk
 	for chunkOffset := 0; chunkOffset < len(message); chunkOffset += 64 {
 		chunk := message[chunkOffset : chunkOffset+64]
-		println("chunk: ", chunk)
+		// println("chunk: ", chunk)
 
 		var w [8]uint64
 		for i := 0; i < 8; i++ {
 			w[i] = binary.BigEndian.Uint64(chunk[i*8:])
 		}
 
-		println("w0: ", w[0])
+		// println("w0: ", w[0])
 
 		a, b, c := h0, h1, h2
 
@@ -606,7 +605,7 @@ func TigerHash(message []byte) [24]byte {
 		h1 += b
 		h2 += c
 
-		println("h0: ", h0, "h1: ", h1, "h2: ", h2)
+		// println("h0: ", h0, "h1: ", h1, "h2: ", h2)
 	}
 
 	// Produce the final digest
@@ -638,8 +637,8 @@ func TigerHash(message []byte) [24]byte {
 	return digest
 }
 
-func main() {
-	message := []byte("The quick brown fox jumps over the lazy dog")
-	hash := TigerHash(message)
-	fmt.Printf("Tiger Hash: %x\n", hash)
-}
+// func main() {
+// 	message := []byte("The quick brown fox jumps over the lazy dog")
+// 	hash := TigerHash(message)
+// 	fmt.Printf("Tiger Hash: %x\n", hash)
+// }

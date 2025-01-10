@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 )
 
 func main() {
@@ -17,23 +18,28 @@ func main() {
 	events := make(chan []string)
 	dirToWatch := "/Users/dusanpavlovic016/Books/Target"
 
-	log.Println("Pokrenuta gorutina za file Target")
-	go filewatcher.WatchDir(dirToWatch, events, controlChannel)
-
+	var watchOnce sync.Once
+	watchOnce.Do(func() {
+		log.Println("Pokrenuta gorutina za file Target")
+		go filewatcher.WatchDir(dirToWatch, events, controlChannel)
+	})
 	controlChannelX := make(chan string)
 	eventsX := make(chan []string)
 	dirToWatchX := "/Users/dusanpavlovic016/Books/X"
 
-	log.Println("Pokrenuta gorutina za file X")
-	go filewatcher.WatchDir(dirToWatchX, eventsX, controlChannelX)
-
+	var watchOnce2 sync.Once
+	watchOnce2.Do(func() {
+		log.Println("Pokrenuta gorutina za file X")
+		go filewatcher.WatchDir2(dirToWatchX, eventsX, controlChannelX)
+	})
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		websocket.HandleWebSocket(w, r, controlChannel, events, controlChannelX, eventsX)
 	})
 
 	http.HandleFunc("/upload", services.EnableCORS(services.UploadHandler))
 	http.HandleFunc("/uploadandencode", services.EnableCORS(services.UploadandencodeHandler))
-	http.HandleFunc("/encodetype", services.EnableCORS(services.EncodeTypeHandler))
+	http.HandleFunc("/encodetype", services.EnableCORS(services.CipherTypeHandler))
+	http.HandleFunc("/file-list-x-action", services.EnableCORS(services.DecodeFileHandler))
 
 	http.HandleFunc("/control", services.EnableCORS(func(w http.ResponseWriter, r *http.Request) {
 		services.CommandHandler(w, r, controlChannel, controlChannelX)

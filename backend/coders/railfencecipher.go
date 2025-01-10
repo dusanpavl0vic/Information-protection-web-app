@@ -1,44 +1,6 @@
 package coders
 
-func EncryptRailFence(message string, depth int) string {
-	rails := make([][]rune, depth)
-	for i := range rails {
-		rails[i] = make([]rune, len(message))
-		for j := range rails[i] {
-			rails[i][j] = '\n'
-		}
-	}
-
-	downward := false
-	currentRow, currentCol := 0, 0
-
-	for _, char := range message {
-		if currentRow == 0 || currentRow == depth-1 {
-			downward = !downward
-		}
-		rails[currentRow][currentCol] = char
-		currentCol++
-		if downward {
-			currentRow++
-		} else {
-			currentRow--
-		}
-	}
-
-	cipherText := make([]rune, 0, len(message))
-	for i := 0; i < depth; i++ {
-		for j := 0; j < len(message); j++ {
-			if rails[i][j] != '\n' {
-				cipherText = append(cipherText, rails[i][j])
-			}
-		}
-	}
-
-	return string(cipherText)
-}
-
-// Function to decrypt a message using Rail Fence Cipher
-func decryptRailFence(cipher string, depth int) string {
+func DecryptRailFence(cipher string, depth int) string {
 	rails := make([][]rune, depth)
 	for i := range rails {
 		rails[i] = make([]rune, len(cipher))
@@ -97,4 +59,41 @@ func decryptRailFence(cipher string, depth int) string {
 	}
 
 	return string(plainText)
+}
+
+func EncryptRailFence(message string, depth int) string {
+	rails := make([][]rune, depth)
+	for i := range rails {
+		rails[i] = make([]rune, len(message))
+		for j := range rails[i] {
+			rails[i][j] = '\n'
+		}
+	}
+
+	downward := false
+	currentRow, currentCol := 0, 0
+
+	for _, char := range message {
+		if currentRow == 0 || currentRow == depth-1 {
+			downward = !downward
+		}
+		rails[currentRow][currentCol] = char
+		currentCol++
+		if downward {
+			currentRow++
+		} else {
+			currentRow--
+		}
+	}
+
+	cipherText := make([]rune, 0, len(message))
+	for i := 0; i < depth; i++ {
+		for j := 0; j < len(message); j++ {
+			if rails[i][j] != '\n' {
+				cipherText = append(cipherText, rails[i][j])
+			}
+		}
+	}
+
+	return string(cipherText)
 }

@@ -45,8 +45,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// TODO: Могуће је одабрати опцију декодирања фајлова. Корисник бира неки
-	// кодирани фајл, врши се декодирање и декодирани фајл се памти на локацију коју корисник изабере.
+	log.Println("mene niko ne zove")
 
 	targetDir := "/Users/dusanpavlovic016/Books/Target"
 
@@ -79,6 +78,8 @@ func UploadandencodeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("nije moguće pročitati fajl: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	log.Println("update i ekoduj samo se ja javljam babbabababa")
 
 	EncodeFile(fileData, fileHeader.Filename)
 
