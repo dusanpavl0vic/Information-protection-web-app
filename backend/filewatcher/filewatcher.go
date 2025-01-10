@@ -1,37 +1,13 @@
 package filewatcher
 
 import (
-	"backend-ZI/coders"
+	"backend-ZI/services"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/fsnotify/fsnotify"
-)
-
-type CipherType int
-
-const (
-	RailFence CipherType = iota // Automatski dobija vrednost 0
-	XXTEA                       // Automatski dobija vrednost 1
-)
-
-func (c CipherType) String() string {
-	switch c {
-	case RailFence:
-		return "RailFence"
-	case XXTEA:
-		return "XXTEA"
-	default:
-		return "UnknownCipher"
-	}
-}
-
-var (
-	depth  int        = 3
-	cipher CipherType = 0
 )
 
 func WatchDir(dir string, events chan []string, controlChannel chan string) {
@@ -49,7 +25,7 @@ func WatchDir(dir string, events chan []string, controlChannel chan string) {
 		return
 	}
 
-	active := true
+	active := false
 	for {
 		select {
 		case event := <-watcher.Events:
@@ -61,10 +37,16 @@ func WatchDir(dir string, events chan []string, controlChannel chan string) {
 					continue
 				}
 				events <- files
-				go func(fileName string) {
-					err2 := encodeFile(fileName)
+				go func(filePath string) {
+					fileName := filepath.Base(filePath)
+					fileData, err1 := readFile(filePath)
+					if err1 != nil {
+						log.Printf("Error reading file %s: %v", filePath, err1)
+						return
+					}
+					err2 := services.EncodeFile(fileData, fileName)
 					if err2 != nil {
-						log.Printf("Error encoding file %s: %v", fileName, err2) // Popravka da koristi err2 umesto err
+						log.Printf("Error encoding file %s: %v", fileName, err2)
 					}
 				}(event.Name)
 			}
@@ -96,49 +78,18 @@ func listFiles(dir string) ([]string, error) {
 			return err
 		}
 		if !info.IsDir() {
-			files = append(files, path)
+			files = append(files, filepath.Base(path))
 		}
 		return nil
 	})
 	return files, err
 }
 
-func encodeFile(file string) error {
-	f, err := os.Open(file)
+func readFile(filePath string) ([]byte, error) {
+	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to open file: %v", err)
-	}
-	defer f.Close()
-
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %v", err)
+		return nil, fmt.Errorf("failed to read file %s: %v", filePath, err)
 	}
 
-	var encrypted string
-
-	switch cipher {
-	case RailFence:
-		encrypted = coders.EncryptRailFence(string(data), depth)
-		fmt.Println("Cipher is Railfence")
-	case XXTEA:
-		fmt.Println("Cipher is XXTEA")
-	}
-
-	modifiedPath := strings.Replace(file, "/Target/", "/X/", 1)
-
-	dir, file := filepath.Split(modifiedPath)
-	ext := filepath.Ext(file)
-	baseName := strings.TrimSuffix(file, ext)
-
-	newFileName := fmt.Sprintf("%s_%s%s", baseName, cipher.String(), ext)
-	newFilePath := filepath.Join(dir, newFileName)
-
-	err2 := os.WriteFile(newFilePath, []byte(encrypted), 0644)
-	if err2 != nil {
-		return fmt.Errorf("failed to write encrypted file: %v", err)
-	}
-
-	fmt.Println("File saved successfully:", newFilePath)
-	return nil
+	return data, nil
 }

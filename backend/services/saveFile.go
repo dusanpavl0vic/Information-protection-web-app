@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -44,9 +45,6 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// TODO: Dodati citanje iz fajla i kodiranje u zavisnosti od odabranog kodera
-	// i sacuvati dir /Users/dusanpavlovic016/Books/X
-
 	// TODO: Могуће је одабрати опцију декодирања фајлова. Корисник бира неки
 	// кодирани фајл, врши се декодирање и декодирани фајл се памти на локацију коју корисник изабере.
 
@@ -60,4 +58,31 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Fajl je uspešno sačuvan na: %s", filePath)
+}
+
+func UploadandencodeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Metoda nije podržana", http.StatusMethodNotAllowed)
+		return
+	}
+
+	file, fileHeader, err := r.FormFile("file")
+	log.Println(fileHeader.Filename)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("nije moguće obraditi fajl: %v", err), http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	fileData, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("nije moguće pročitati fajl: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	EncodeFile(fileData, fileHeader.Filename)
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"message": "File uploaded and encoded successfully!"}`))
 }
